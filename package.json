@@ -1,0 +1,120 @@
+{
+  "name": "trailing-fun",
+  "displayName": "Trailing Fun",
+  "publisher": "isaaskin",
+  "license": "MIT",
+  "description": "A colorful, fun trail that follows your cursor as you type with a gamified combo system.",
+  "version": "1.0.0",
+  "icon": "icon.jpg",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/isaaskin/trailing-fun.git"
+  },
+  "engines": {
+    "vscode": "^1.88.0"
+  },
+  "categories": [
+    "Other",
+    "Education"
+  ],
+  "keywords": [
+    "trailing",
+    "fun",
+    "typing",
+    "effects",
+    "particles",
+    "combo",
+    "gamification"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "trailing-fun.toggle",
+        "title": "Toggle Trailing Fun"
+      },
+      {
+        "command": "trailing-fun.showQuickMenu",
+        "title": "Trailing Fun Quick Config"
+      }
+    ],
+    "configuration": {
+      "title": "Trailing Fun",
+      "properties": {
+        "trailing-fun.theme": {
+          "type": "string",
+          "default": "classic",
+          "enum": [
+            "classic",
+            "rainbow",
+            "fixed",
+            "glow",
+            "neon",
+            "fire",
+            "glitch",
+            "matrix"
+          ],
+          "enumDescriptions": [
+            "Random vibrant colors for every character",
+            "Smooth shifting spectrum trail",
+            "A single solid color of your choice",
+            "Random colors with a soft cinematic glow",
+            "Intense alternating pink and cyan neon",
+            "Layered red, orange, and gold burn effect",
+            "Jittery cyan/magenta chromatic corruption",
+            "Classic green digital rain"
+          ],
+          "description": "Choose the visual theme for your trail."
+        },
+        "trailing-fun.fixedColor": {
+          "type": "string",
+          "default": "#007acc",
+          "description": "The color used in themes that require a fixed color."
+        },
+        "trailing-fun.trailLength": {
+          "type": "integer",
+          "default": 12,
+          "minimum": 1,
+          "maximum": 50,
+          "description": "How many steps the trail lasts (length)."
+        },
+        "trailing-fun.trailSpeed": {
+          "type": "integer",
+          "default": 50,
+          "minimum": 10,
+          "maximum": 500,
+          "description": "Delay between each fade step in ms. Higher = slower fade."
+        },
+        "trailing-fun.smartAutoSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "When enabled, temporarily disables files.autoSave while typing and saves once when the trail finishes. Prevents build tools from triggering on every keystroke."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.3",
+    "@types/node": "18.x",
+    "@types/vscode": "^1.88.0",
+    "@typescript-eslint/eslint-plugin": "^6.9.0",
+    "@typescript-eslint/parser": "^6.9.0",
+    "@vscode/test-electron": "^2.3.6",
+    "@vscode/vsce": "^3.9.1",
+    "eslint": "^8.52.0",
+    "glob": "^10.3.10",
+    "mocha": "^10.2.0",
+    "typescript": "^5.2.2"
+  }
+}
