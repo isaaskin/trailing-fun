@@ -12,7 +12,9 @@
 
 ## Features
 
-**8 Visual Themes** — from a smooth Rainbow Wave to Matrix Rain, Burning Fire, and Neon Cyberpunk. Switch instantly from the status bar.
+**11 Visual Themes** — from a smooth Rainbow Wave to Matrix Rain, Burning Fire, Neon Cyberpunk, Aurora, Vaporwave, and Hyperdrive. Switch instantly from the status bar.
+
+**🔥 Combo System** — consecutive typing builds a combo in the status bar; your best streak is saved between sessions. Reset it any time from the Quick Config menu.
 
 **💾 Smart Auto-Save** — automatically disables VS Code's `files.autoSave` while you type. Your file is saved **exactly once**, the moment the trail animation finishes. This means watching compilers (`tsc`, `webpack`, `npm watch`) are only triggered **once per typing burst** — not on every single keystroke.
 
@@ -24,19 +26,22 @@
 
 ## Themes
 
-| Theme | Preview | Description |
-| :--- | :--- | :--- |
-| 🎲 **Random Classic** | ![Classic](assets/demo/classic.gif) | A different vibrant color for every character. |
-| 🌈 **Rainbow Wave** | ![Rainbow](assets/demo/rainbow.gif) | A smooth, shifting color spectrum. |
-| 📌 **Fixed Color** | ![Fixed](assets/demo/fixed.gif) | Your chosen hex color, consistently applied. |
-| 🌟 **Glowing Aura** | ![Glow](assets/demo/glow.gif) | Random colors with a soft cinematic glow. |
-| ⚡ **Neon Cyberpunk** | ![Neon](assets/demo/neon.gif) | Intense alternating pink and cyan neon. |
-| 🔥 **Burning Fire** | ![Fire](assets/demo/burning_fire.gif) | Layered red, orange, and gold burn effect. |
-| 👾 **Digital Glitch** | ![Glitch](assets/demo/glitch.gif) | Jittery cyan/magenta chromatic corruption. |
-| 📟 **Matrix Rain** | ![Matrix](assets/demo/matrix.gif) | Classic green digital rain with a dark tint. |
+| Theme | Description |
+| :--- | :--- |
+| 🎲 **Random Classic** | A different vibrant color for every character. |
+| 🌈 **Rainbow Wave** | A smooth, shifting color spectrum. |
+| 📌 **Fixed Color** | Your chosen hex color, consistently applied. |
+| 🌟 **Glowing Aura** | Random colors with a soft cinematic glow. |
+| ⚡ **Neon Cyberpunk** | Intense alternating pink and cyan neon. |
+| 🔥 **Burning Fire** | Layered red, orange, and gold burn effect. |
+| 👾 **Digital Glitch** | Jittery cyan/magenta chromatic corruption. |
+| 📟 **Matrix Rain** | Classic green digital rain with a dark tint. |
+| 🌌 **Aurora** | Shimmering greens, teals, and violets like northern lights. |
+| 💜 **Vaporwave** | Retro pink and cyan glow with chromatic offset. |
+| 🚀 **Hyperdrive** | Blazing blue-white streaks like a jump to lightspeed. |
 
 ### 🎨 Want more magic?
-Have an idea for a theme? Whether it's **"Star Wars Hyperdrive"**, **"Retro Terminal"**, or something completely wild, I want to hear it! 
+Have an idea for a theme? Whether it's **"Retro Terminal"**, **"Deep Ocean"**, or something completely wild, I want to hear it! 
 
 👉 [**Open a Theme Suggestion Issue**](https://github.com/isaaskin/trailing-fun/issues/new?title=Theme+Suggestion&body=I+would+love+to+see+a+theme+that...)
 
@@ -65,7 +70,8 @@ Access everything from the **✨ Fun** status bar item, or via the Command Palet
 
 ## Notes
 
-- **Smart Auto-Save**: Enabled by default. When active, `files.autoSave` is temporarily set to `off` during typing and restored when you disable or uninstall the extension.
+- **Smart Auto-Save**: Enabled by default. When active, `files.autoSave` is temporarily set to `off` for the duration of each typing burst and restored as soon as the trail finishes.
+- **Combo high score**: Stored in VS Code's global state and restored between sessions. Clear it from the Quick Config menu.
 - **Performance**: The animation loop is fully idle-aware — no CPU or memory is used while you are not typing.
 - **Ligatures**: If characters appear shifted in some themes, try disabling font ligatures for your editor font.
 

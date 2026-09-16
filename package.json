@@ -4,8 +4,8 @@
   "publisher": "isaaskin",
   "license": "MIT",
   "description": "A colorful, fun trail that follows your cursor as you type with a gamified combo system.",
-  "version": "1.0.0",
-  "icon": "icon.jpg",
+  "version": "1.1.0",
+  "icon": "icon.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/isaaskin/trailing-fun.git"
@@ -55,7 +55,10 @@
             "neon",
             "fire",
             "glitch",
-            "matrix"
+            "matrix",
+            "aurora",
+            "vaporwave",
+            "hyperdrive"
           ],
           "enumDescriptions": [
             "Random vibrant colors for every character",
@@ -65,7 +68,10 @@
             "Intense alternating pink and cyan neon",
             "Layered red, orange, and gold burn effect",
             "Jittery cyan/magenta chromatic corruption",
-            "Classic green digital rain"
+            "Classic green digital rain",
+            "Shimmering greens, teals, and violets like northern lights",
+            "Retro pink and cyan glow with chromatic offset",
+            "Blazing blue-white streaks like a jump to lightspeed"
           ],
           "description": "Choose the visual theme for your trail."
         },
@@ -110,7 +116,7 @@
     "@types/vscode": "^1.88.0",
     "@typescript-eslint/eslint-plugin": "^6.9.0",
     "@typescript-eslint/parser": "^6.9.0",
-    "@vscode/test-electron": "^2.3.6",
+    "@vscode/test-electron": "^3.1.0",
     "@vscode/vsce": "^3.9.1",
     "eslint": "^8.52.0",
     "glob": "^10.3.10",
