@@ -2,6 +2,22 @@
 
 All notable changes to Trailing Fun will be documented in this file.
 
+## [2.0.0] - 2026-10-22
+
+### Breaking Changes
+- Retired Smart Auto-Save interception in favor of VS Code's native auto-save settings. The legacy setting is deprecated, defaults to false, and no longer saves files or changes preferences during editing. To enable delayed saving, set `files.autoSave` to `afterDelay` and configure `files.autoSaveDelay`.
+
+### Fixed
+- Correct first-line highlighting for multiline insertions at nonzero columns.
+- Render one-step trails instead of expiring them before their first frame.
+- Clear stale trails when edits shift their positions, during undo/redo, and when a document closes.
+- Clear an editor's expired decorations even while another editor is still animating.
+- Remember the enabled/disabled preference across reloads and cancel all timers on deactivation.
+
+### Changed
+- Recover an older version's saved auto-save preference once, only if the global setting is still off.
+- Corrected idle-performance and save-behavior documentation.
+
 ## [1.1.0] - 2026-09-16
 
 ### Added

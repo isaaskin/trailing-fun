@@ -10,6 +10,7 @@ const MAX_ACTIVE_PARTICLES = 800;
 const MAX_CHANGE_LENGTH = 1000;
 const DEFAULT_COLOR = '#007acc';
 const HIGH_SCORE_KEY = 'trailing-fun.highScore';
+const ENABLED_KEY = 'trailing-fun.enabled';
 // Cap the backoff so a huge trail still animates perceptibly.
 const MAX_FRAME_DELAY_MS = 250;
 // Coalesce rapid status bar updates during a typing burst.
@@ -32,7 +33,7 @@ class SimpleParticle {
 
     public update(): boolean {
         this.count++;
-        return this.count < this.maxSteps;
+        return this.count <= this.maxSteps;
     }
 }
 
@@ -178,94 +179,26 @@ let myStatusBarItem: vscode.StatusBarItem;
 const activeParticles = new Set<SimpleParticle>();
 let animationTimer: NodeJS.Timeout | undefined;
 let lastActiveParticleCount = 0;
-let smartSaveTimer: NodeJS.Timeout | undefined;
 let comboResetTimer: NodeJS.Timeout | undefined;
 let statusBarTimer: NodeJS.Timeout | undefined;
-const pendingSaves = new Set<vscode.TextDocument>();
 
 let currentTheme: Theme = THEMES[0];
 let currentFixedColor = DEFAULT_COLOR;
 let currentTrailLength = 12;
 let currentTrailSpeed = 50;
-let smartAutoSaveEnabled = true;
 
 let comboTracker = new ComboTracker(COMBO_TIMEOUT_MS, 0);
 
-let originalAutoSave: string | undefined;
-let autoSaveDisabledByUs = false;
-let extensionContext: vscode.ExtensionContext | undefined;
-
-/**
- * Smart Auto-Save only disables `files.autoSave` for the duration of a typing
- * burst (restored once the trail finishes), so a crash never leaves the user
- * without auto-save for the whole session.
- */
-async function disableAutoSaveForBurst() {
-    if (!extensionContext || autoSaveDisabledByUs) {
-        return;
-    }
+async function recoverLegacyAutoSave(context: vscode.ExtensionContext) {
+    const original = context.globalState.get<string>('originalAutoSave');
+    if (!original) { return; }
     const config = vscode.workspace.getConfiguration('files');
-    const currentAutoSave = config.get<string>('autoSave');
-    if (currentAutoSave && currentAutoSave !== 'off') {
-        autoSaveDisabledByUs = true;
-        originalAutoSave = currentAutoSave;
-        // Persist so we can recover if VS Code exits mid-burst
-        await extensionContext.globalState.update('originalAutoSave', originalAutoSave);
-        await config.update('autoSave', 'off', vscode.ConfigurationTarget.Global);
+    // Only undo the global "off" written by older versions, never a newer preference.
+    if (['afterDelay', 'onFocusChange', 'onWindowChange'].includes(original)
+        && config.inspect<string>('autoSave')?.globalValue === 'off') {
+        await config.update('autoSave', original, vscode.ConfigurationTarget.Global);
     }
-}
-
-async function restoreAutoSave() {
-    if (smartSaveTimer) {
-        clearTimeout(smartSaveTimer);
-        smartSaveTimer = undefined;
-    }
-    flushPendingSaves();
-    if (!extensionContext) {
-        return;
-    }
-    const toRestore = originalAutoSave ?? extensionContext.globalState.get<string>('originalAutoSave');
-    if (toRestore && toRestore !== 'off') {
-        await vscode.workspace.getConfiguration('files').update('autoSave', toRestore, vscode.ConfigurationTarget.Global);
-    }
-    originalAutoSave = undefined;
-    autoSaveDisabledByUs = false;
-    await extensionContext.globalState.update('originalAutoSave', undefined);
-}
-
-function isSaveable(doc: vscode.TextDocument): boolean {
-    return doc.isDirty && !doc.isUntitled && doc.uri.scheme === 'file';
-}
-
-function flushPendingSaves() {
-    for (const doc of pendingSaves) {
-        try {
-            if (isSaveable(doc)) {
-                doc.save();
-            }
-        } catch {
-            // Document may have been closed/disposed before the timer fired
-        }
-    }
-    pendingSaves.clear();
-}
-
-function scheduleSmartSave(doc: vscode.TextDocument) {
-    if (!smartAutoSaveEnabled) {
-        return;
-    }
-
-    void disableAutoSaveForBurst();
-    pendingSaves.add(doc);
-    if (smartSaveTimer) {
-        clearTimeout(smartSaveTimer);
-    }
-
-    const delay = currentTrailLength * currentTrailSpeed + 500;
-    smartSaveTimer = setTimeout(() => {
-        smartSaveTimer = undefined;
-        void restoreAutoSave();
-    }, delay);
+    await context.globalState.update('originalAutoSave', undefined);
 }
 
 let comboLastHit = 0;
@@ -296,7 +229,6 @@ function updateConfig() {
     currentFixedColor = normalizeHexColor(config.get<string>('fixedColor'), DEFAULT_COLOR);
     currentTrailLength = config.get<number>('trailLength', 12);
     currentTrailSpeed = config.get<number>('trailSpeed', 50);
-    smartAutoSaveEnabled = config.get<boolean>('smartAutoSave', true);
 }
 
 function nextColor(): string {
@@ -310,16 +242,17 @@ function nextColor(): string {
     return pickPaletteColor(currentTheme.palette ?? CLASSIC_PALETTE);
 }
 
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
     console.log('Trailing Fun extension is now active!');
-    extensionContext = context;
+    isEnabled = context.globalState.get<boolean>(ENABLED_KEY, true);
     comboTracker = new ComboTracker(COMBO_TIMEOUT_MS, context.globalState.get<number>(HIGH_SCORE_KEY) ?? 0);
     updateConfig();
-
-    // Recover auto-save if VS Code was closed mid-burst previously
-    originalAutoSave = context.globalState.get<string>('originalAutoSave');
-    if (originalAutoSave) {
-        void restoreAutoSave();
+    try {
+        await recoverLegacyAutoSave(context);
+    } catch (error) {
+        // Keep the recovery marker so the next activation can retry.
+        console.error('Trailing Fun could not restore the previous auto-save setting:', error);
+        vscode.window.showErrorMessage('Trailing Fun could not restore your previous Auto Save setting. Check Files: Auto Save in Settings.');
     }
 
     context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(e => {
@@ -327,7 +260,6 @@ export function activate(context: vscode.ExtensionContext) {
             return;
         }
         const oldSpeed = currentTrailSpeed;
-        const wasSmart = smartAutoSaveEnabled;
         updateConfig();
         // Only clear cache when idle to avoid visual gaps mid-animation
         if (activeParticles.size === 0) {
@@ -335,25 +267,13 @@ export function activate(context: vscode.ExtensionContext) {
         }
 
         // If speed changed, restart the loop to apply it
-        if (currentTrailSpeed !== oldSpeed) {
+        if (currentTrailSpeed !== oldSpeed && activeParticles.size > 0) {
             stopAnimationLoop();
             startAnimationLoop();
         }
-
-        if (wasSmart && !smartAutoSaveEnabled) {
-            void restoreAutoSave();
-        }
     }));
 
-    // Drop bookkeeping for closed documents so we don't hold or save them
-    context.subscriptions.push(vscode.workspace.onDidCloseTextDocument(doc => {
-        pendingSaves.delete(doc);
-        for (const editor of appliedDecorations.keys()) {
-            if (editor.document === doc) {
-                appliedDecorations.delete(editor);
-            }
-        }
-    }));
+    context.subscriptions.push(vscode.workspace.onDidCloseTextDocument(clearDocumentTrail));
 
     // Animation loop starts on-demand from the first keypress (see onDidChangeTextDocument).
 
@@ -365,7 +285,7 @@ export function activate(context: vscode.ExtensionContext) {
     myStatusBarItem.show();
     context.subscriptions.push(myStatusBarItem);
 
-    const disposableToggle = vscode.commands.registerCommand('trailing-fun.toggle', () => {
+    const disposableToggle = vscode.commands.registerCommand('trailing-fun.toggle', async () => {
         isEnabled = !isEnabled;
         if (!isEnabled) {
             clearActiveTrail();
@@ -374,10 +294,10 @@ export function activate(context: vscode.ExtensionContext) {
                 clearTimeout(comboResetTimer);
                 comboResetTimer = undefined;
             }
-            void restoreAutoSave();
         }
         vscode.window.showInformationMessage(`Trailing Fun trail is now ${isEnabled ? 'enabled' : 'disabled'}.`);
         updateStatusBar();
+        await context.globalState.update(ENABLED_KEY, isEnabled);
     });
 
     const disposableQuickMenu = vscode.commands.registerCommand('trailing-fun.showQuickMenu', async () => {
@@ -501,9 +421,18 @@ export function activate(context: vscode.ExtensionContext) {
     });
 
     const onDidChangeDisposable = vscode.workspace.onDidChangeTextDocument(event => {
-        if (!isEnabled) {
+        if (!isEnabled || event.contentChanges.length === 0) {
             return;
         }
+
+        // ponytail: discard shifted trails; transform ranges if continuity becomes important.
+        if (event.reason !== undefined || event.contentChanges.some(change =>
+            change.rangeLength > 0 || change.text.includes('\n') || [...activeParticles].some(particle =>
+                particle.editor.document === event.document && particle.range.end.isAfter(change.range.start)))) {
+            clearDocumentTrail(event.document);
+        }
+        // Undo/redo should not create a new typing combo or replay old effects.
+        if (event.reason !== undefined) { return; }
 
         const activeEditor = vscode.window.activeTextEditor;
         if (!activeEditor || activeEditor.document !== event.document) {
@@ -520,9 +449,6 @@ export function activate(context: vscode.ExtensionContext) {
             scheduleComboReset();
             scheduleStatusBarUpdate();
         }
-
-        // Always schedule a smart save on any keypress (including backspace, enter, etc.)
-        scheduleSmartSave(event.document);
 
         event.contentChanges.forEach(change => {
             // Ignore very large changes (like massive pastes) to avoid performance issues.
@@ -541,9 +467,7 @@ export function activate(context: vscode.ExtensionContext) {
                 if (activeParticles.size >= MAX_ACTIVE_PARTICLES) { return; }
                 const line = start.line + index;
                 const charStart = index === 0 ? start.character : 0;
-                const charEnd = index === 0 && lines.length === 1
-                    ? start.character + lineText.length
-                    : lineText.length;
+                const charEnd = charStart + lineText.length;
                 const effectRange = new vscode.Range(line, charStart, line, charEnd);
                 new SimpleParticle(activeEditor, effectRange, color, currentTheme.effect, currentTrailLength);
             });
@@ -560,9 +484,23 @@ export function activate(context: vscode.ExtensionContext) {
 export async function deactivate() {
     clearActiveTrail();
     clearDecorationCache();
-    activeParticles.clear();
-    // Always restore auto-save on deactivate/uninstall
-    await restoreAutoSave();
+    if (comboResetTimer) { clearTimeout(comboResetTimer); comboResetTimer = undefined; }
+    if (statusBarTimer) { clearTimeout(statusBarTimer); statusBarTimer = undefined; }
+}
+
+function clearDocumentTrail(doc: vscode.TextDocument) {
+    for (const particle of activeParticles) {
+        if (particle.editor.document === doc) { activeParticles.delete(particle); }
+    }
+    for (const [editor, rangesByType] of appliedDecorations) {
+        if (editor.document !== doc) { continue; }
+        for (const decoration of rangesByType.keys()) { applyDecorations(editor, decoration, []); }
+        appliedDecorations.delete(editor);
+    }
+    if (activeParticles.size === 0) {
+        stopAnimationLoop();
+        lastActiveParticleCount = 0;
+    }
 }
 
 function clearPreviousFrame() {
@@ -633,6 +571,13 @@ function renderFrame() {
 
     const visibleEditors = new Set(vscode.window.visibleTextEditors);
 
+    // An editor's last particle can expire while another editor is still animating.
+    for (const [editor, rangesByType] of appliedDecorations) {
+        if (editorMap.has(editor)) { continue; }
+        for (const decoration of rangesByType.keys()) { applyDecorations(editor, decoration, []); }
+        appliedDecorations.delete(editor);
+    }
+
     // For each editor, apply diff-based decoration updates (only touch what changed)
     for (const [editor, particles] of editorMap) {
         // Skip editors that have been closed or hidden since the particle was created
@@ -652,7 +597,7 @@ function renderFrame() {
         const decorationGroups = new Map<vscode.TextEditorDecorationType, vscode.Range[]>();
 
         for (const particle of particles) {
-            const alpha = Math.floor(200 * (1 - (particle.count / particle.maxSteps)));
+            const alpha = Math.floor(200 * (1 - ((particle.count - 1) / particle.maxSteps)));
             const decoration = getCachedDecoration(particle, alpha);
             currentFrameDecorations.add(decoration);
             const ranges = decorationGroups.get(decoration) || [];

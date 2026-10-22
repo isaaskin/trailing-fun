@@ -3,7 +3,11 @@ name: Release
 on:
   push:
     tags:
-      - 'v*' # Trigger on version tags like v1.0.0
+      - 'v*'
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -21,19 +25,51 @@ jobs:
           node-version: 20
           cache: 'npm'
 
+      - name: Validate release version and notes
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const { version } = require('./package.json');
+          const lock = require('./package-lock.json');
+          if (process.env.GITHUB_REF_NAME !== `v${version}` || lock.version !== version || lock.packages[''].version !== version) {
+            throw new Error('Release tag, manifest, and lockfile versions must match.');
+          }
+          const section = fs.readFileSync('CHANGELOG.md', 'utf8').split(/^## /m).find(part => part.startsWith(`[${version}] - `));
+          const notes = section?.split('\n').slice(1).join('\n').trim();
+          if (!notes) { throw new Error('Release notes are missing from CHANGELOG.md.'); }
+          fs.writeFileSync('release-notes.md', notes + '\n');
+          NODE
+
+      - name: Check Marketplace credential
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          if [ -z "$VSCE_PAT" ]; then
+            echo "::error::Add the VSCE_PAT Actions secret with Marketplace publishing access."
+            exit 1
+          fi
+
       - name: Install dependencies
         run: npm ci
 
-      - name: Build
-        run: npm run compile
+      - name: Run tests and lint
+        run: xvfb-run -a npm test
 
       - name: Package Extension
-        run: npx vsce package
+        run: npx vsce package --no-dependencies --out trailing-fun.vsix
+
+      - name: Publish to VS Code Marketplace
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: npx vsce publish --packagePath trailing-fun.vsix --skip-duplicate
 
       - name: Create Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: "*.vsix"
-          generate_release_notes: true
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" trailing-fun.vsix --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" trailing-fun.vsix --verify-tag \
+              --title "Trailing Fun $GITHUB_REF_NAME" --notes-file release-notes.md
+          fi

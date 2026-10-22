@@ -16,7 +16,7 @@
 
 **🔥 Combo System** — consecutive typing builds a combo in the status bar; your best streak is saved between sessions. Reset it any time from the Quick Config menu.
 
-**💾 Smart Auto-Save** — automatically disables VS Code's `files.autoSave` while you type. Your file is saved **exactly once**, the moment the trail animation finishes. This means watching compilers (`tsc`, `webpack`, `npm watch`) are only triggered **once per typing burst** — not on every single keystroke.
+**Your Save Settings Stay Yours** — the trail never saves your files or changes your auto-save preferences. For delayed saving, use VS Code's built-in **Files: Auto Save** (`afterDelay`) and **Files: Auto Save Delay** settings.
 
 **Autocomplete-Aware** — works seamlessly with GitHub Copilot and IntelliSense. Skips decoration on massive pastes to keep things clean.
 
@@ -55,7 +55,6 @@ Have an idea for a theme? Whether it's **"Retro Terminal"**, **"Deep Ocean"**, o
 | `trailing-fun.fixedColor` | `#007acc` | Color used by the Fixed Color theme. |
 | `trailing-fun.trailLength` | `12` | Number of fade steps (1–50). |
 | `trailing-fun.trailSpeed` | `50` | Delay between each fade step in ms (10–500). Higher = slower fade. |
-| `trailing-fun.smartAutoSave` | `true` | Manages `files.autoSave` to batch build triggers. |
 
 ---
 
@@ -70,9 +69,10 @@ Access everything from the **✨ Fun** status bar item, or via the Command Palet
 
 ## Notes
 
-- **Smart Auto-Save**: Enabled by default. When active, `files.autoSave` is temporarily set to `off` for the duration of each typing burst and restored as soon as the trail finishes.
+- **Saving**: Managed entirely by VS Code. The legacy `trailing-fun.smartAutoSave` setting is deprecated and has no effect. If an older version left global auto-save disabled mid-burst, its saved preference is recovered once on activation, provided the global value is still `off`.
+- **Trail toggle**: Your enabled/disabled preference is remembered across reloads.
 - **Combo high score**: Stored in VS Code's global state and restored between sessions. Clear it from the Quick Config menu.
-- **Performance**: The animation loop is fully idle-aware — no CPU or memory is used while you are not typing.
+- **Performance**: No animation timer runs while idle. Cached decorations and extension state remain in memory.
 - **Ligatures**: If characters appear shifted in some themes, try disabling font ligatures for your editor font.
 
 ---
