@@ -40,15 +40,6 @@ jobs:
           fs.writeFileSync('release-notes.md', notes + '\n');
           NODE
 
-      - name: Check Marketplace credential
-        env:
-          VSCE_PAT: ${{ secrets.VSCE_PAT }}
-        run: |
-          if [ -z "$VSCE_PAT" ]; then
-            echo "::error::Add the VSCE_PAT Actions secret with Marketplace publishing access."
-            exit 1
-          fi
-
       - name: Install dependencies
         run: npm ci
 
@@ -61,7 +52,12 @@ jobs:
       - name: Publish to VS Code Marketplace
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
-        run: npx vsce publish --packagePath trailing-fun.vsix --skip-duplicate
+        run: |
+          if [ -n "$VSCE_PAT" ]; then
+            npx vsce publish --packagePath trailing-fun.vsix --skip-duplicate
+          else
+            echo "::notice::VSCE_PAT is not configured. Upload the GitHub release VSIX to Marketplace manually."
+          fi
 
       - name: Create Release
         env:
