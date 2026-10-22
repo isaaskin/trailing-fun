@@ -38,6 +38,7 @@ jobs:
           const notes = section?.split('\n').slice(1).join('\n').trim();
           if (!notes) { throw new Error('Release notes are missing from CHANGELOG.md.'); }
           fs.writeFileSync('release-notes.md', notes + '\n');
+          fs.appendFileSync(process.env.GITHUB_ENV, `VSIX_PATH=trailing-fun-${version}.vsix\n`);
           NODE
 
       - name: Install dependencies
@@ -47,14 +48,14 @@ jobs:
         run: xvfb-run -a npm test
 
       - name: Package Extension
-        run: npx vsce package --no-dependencies --out trailing-fun.vsix
+        run: npx vsce package --no-dependencies --out "$VSIX_PATH"
 
       - name: Publish to VS Code Marketplace
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
         run: |
           if [ -n "$VSCE_PAT" ]; then
-            npx vsce publish --packagePath trailing-fun.vsix --skip-duplicate
+            npx vsce publish --packagePath "$VSIX_PATH" --skip-duplicate
           else
             echo "::notice::VSCE_PAT is not configured. Upload the GitHub release VSIX to Marketplace manually."
           fi
@@ -64,8 +65,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" trailing-fun.vsix --clobber
+            gh release upload "$GITHUB_REF_NAME" "$VSIX_PATH" --clobber
           else
-            gh release create "$GITHUB_REF_NAME" trailing-fun.vsix --verify-tag \
+            gh release create "$GITHUB_REF_NAME" "$VSIX_PATH" --verify-tag \
               --title "Trailing Fun $GITHUB_REF_NAME" --notes-file release-notes.md
           fi
